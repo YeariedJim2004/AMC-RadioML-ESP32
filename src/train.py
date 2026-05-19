@@ -63,7 +63,7 @@ def main():
     print(f"Training on: {device}\n")
 
     # Data
-    train_loader, val_loader, _ = get_loaders(
+    train_loader, val_loader, _, full_dataset = get_loaders(
         pkl_path   = DATASET_PATH,
         batch_size = BATCH_SIZE,
         num_workers= 0
