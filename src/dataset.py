@@ -1,11 +1,11 @@
-﻿"""
+"""
 dataset.py
 ==========
 RadioML 2016.10a Dataset Loader
 - 8 modulation type filter
 - SNR range filter (snr_min parameter)
 - IQ signal normalization
-- SNR-wise index mapping (Phase 4 evaluation এর জন্য)
+- SNR-wise index mapping (Phase 4 evaluation ?? ????)
 - Train / Val / Test split (70/15/15)
 - PyTorch DataLoader ready
 """
@@ -16,8 +16,8 @@ import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 
 
-# ── 8টা target modulation ──────────────────────────────────────────────────────
-SELECTED_MODS = ['BPSK', 'QPSK', '8PSK', '16QAM', '64QAM', 'PAM4', 'WBFM', 'AM-DSB']
+# -- 8?? target modulation ------------------------------------------------------
+SELECTED_MODS = ['BPSK', 'QPSK', '8PSK', 'QAM16', 'QAM64', 'PAM4', 'WBFM', 'AM-DSB']
 
 
 class RadioMLDataset(Dataset):
@@ -95,7 +95,7 @@ def get_loaders(file_path, batch_size=64, seed=42, snr_min=-4):
         dataset, [n_train, n_val, n_test], generator=generator
     )
 
-    print(f"[INFO] Split → Train: {n_train} | Val: {n_val} | Test: {n_test}")
+    print(f"[INFO] Split ? Train: {n_train} | Val: {n_val} | Test: {n_test}")
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=0)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=0)
