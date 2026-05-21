@@ -17,7 +17,7 @@ from torch.utils.data import Dataset, DataLoader, random_split
 
 
 # -- 8?? target modulation ------------------------------------------------------
-SELECTED_MODS = ['BPSK', 'QPSK', '8PSK', 'QAM16', 'QAM64', 'PAM4', 'WBFM', 'AM-DSB']
+SELECTED_MODS = ['BPSK', 'QPSK', '8PSK', 'QAM16', 'QAM64', 'PAM4', 'WBFM', 'AM-DSB', 'AM-SSB', 'GFSK', 'CPFSK']
 
 
 class RadioMLDataset(Dataset):

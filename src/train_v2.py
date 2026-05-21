@@ -36,7 +36,7 @@ train_loader, val_loader, test_loader, _ = get_loaders(DATA_PATH, batch_size=BAT
 print(f"Train batches : {len(train_loader)} | Val batches : {len(val_loader)}")
 
 # ── Model ─────────────────────────────────────────────────────────────────────
-model = AMCNet_v2(num_classes=8, dropout=0.5).to(device)
+model = AMCNet_v2(num_classes=11, dropout=0.5).to(device)
 print(f"Total params  : {count_parameters(model):,}")
 
 # ── Loss / Optimizer / Scheduler ──────────────────────────────────────────────
