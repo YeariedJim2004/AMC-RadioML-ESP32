@@ -42,8 +42,11 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 )
 # Class Weights
 class_weights = torch.ones(num_classes)
-class_weights[3] = 3.0   # QAM16
-class_weights[6] = 3.0   # WBFM
+class_weights[2] = 1.2   # 8PSK
+class_weights[3] = 2.0   # QAM16
+class_weights[4] = 2.0   # QAM64
+class_weights[6] = 2.0   # WBFM
+class_weights[7] = 2.0   # AM-DSB
 class_weights = class_weights.to(device)
 
 criterion = nn.CrossEntropyLoss(weight=class_weights)
