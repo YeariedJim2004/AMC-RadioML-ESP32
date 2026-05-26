@@ -15,10 +15,33 @@ def compute_instantaneous_frequency(iq):
     phase = np.arctan2(Q, I)
     phase_unwrapped = np.unwrap(phase)
     inst_freq = np.diff(phase_unwrapped, prepend=phase_unwrapped[0])
+    kernel = np.ones(5) / 5
+    inst_freq = np.convolve(inst_freq, kernel, mode='same')
     std = inst_freq.std()
     if std > 1e-8:
         inst_freq = (inst_freq - inst_freq.mean()) / std
     return inst_freq.astype(np.float32)
+
+def compute_amplitude_envelope(iq):
+    I = iq[0]
+    Q = iq[1]
+    envelope = np.sqrt(I**2 + Q**2)
+    std = envelope.std()
+    if std > 1e-8:
+        envelope = (envelope - envelope.mean()) / std
+    return envelope.astype(np.float32)
+
+
+def compute_fft_magnitude(iq):
+    I = iq[0]
+    Q = iq[1]
+    complex_sig = I + 1j * Q
+    fft_mag = np.abs(np.fft.fft(complex_sig))
+    fft_mag = np.fft.fftshift(fft_mag)
+    std = fft_mag.std()
+    if std > 1e-8:
+        fft_mag = (fft_mag - fft_mag.mean()) / std
+    return fft_mag.astype(np.float32)
 
 def augment_iq(iq):
     I = iq[0].copy()
@@ -74,8 +97,10 @@ class RadioMLDataset(Dataset):
         iq, label, snr = self.samples[idx]
         iq_used = augment_iq(iq) if self.augment else iq.copy()
         inst_freq = compute_instantaneous_frequency(iq_used)
-        iq_3ch = np.vstack([iq_used, inst_freq[np.newaxis, :]])
-        return torch.tensor(iq_3ch, dtype=torch.float32), torch.tensor(label, dtype=torch.long), torch.tensor(snr, dtype=torch.float32)
+        amplitude = compute_amplitude_envelope(iq_used)
+        fft_mag = compute_fft_magnitude(iq_used)
+        iq_5ch = np.vstack([iq_used, inst_freq[np.newaxis, :], amplitude[np.newaxis, :], fft_mag[np.newaxis, :]])
+        return torch.tensor(iq_5ch, dtype=torch.float32), torch.tensor(label, dtype=torch.long), torch.tensor(snr, dtype=torch.float32)
 
 def get_loaders(file_path, batch_size=256, seed=42, snr_min=-4):
     base = RadioMLDataset(file_path, snr_min=snr_min, augment=False)

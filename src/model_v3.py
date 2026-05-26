@@ -54,7 +54,7 @@ class AMCNet_v3(nn.Module):
         super().__init__()
 
         self.stem = nn.Sequential(
-            nn.Conv1d(3, 32, kernel_size=7, padding=3, bias=False),
+            nn.Conv1d(5, 32, kernel_size=7, padding=3, bias=False),
             nn.BatchNorm1d(32),
             nn.ReLU()
         )
