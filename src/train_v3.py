@@ -41,15 +41,20 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode='min', factor=0.5, patience=8, verbose=True
 )
 # Class Weights
-class_weights = torch.ones(num_classes)
-class_weights[2] = 1.2   # 8PSK
-class_weights[3] = 2.0   # QAM16
-class_weights[4] = 2.0   # QAM64
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=2.0):
+        super().__init__()
+        self.gamma = gamma
+    def forward(self, logits, targets):
+        ce = nn.functional.cross_entropy(logits, targets, reduction='none')
+        pt = torch.exp(-ce)
+        return ((1 - pt) ** self.gamma * ce).mean()
+
+class_weights = torch.ones(11)
 class_weights[6] = 3.0   # WBFM
 class_weights[7] = 3.0   # AM-DSB
 class_weights = class_weights.to(device)
-
-criterion = nn.CrossEntropyLoss(weight=class_weights)
+criterion = FocalLoss(gamma=2.0)
 
 # ── Training Loop ─────────────────────────────────────────────────────────────
 best_val_loss = float('inf')
