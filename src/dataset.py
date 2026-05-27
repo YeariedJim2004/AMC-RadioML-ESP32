@@ -117,3 +117,54 @@ def get_loaders(file_path, batch_size=256, seed=42, snr_min=-4):
     print(f'[Split] Train: {train_size} | Val: {val_size} | Test: {test_size}')
     kwargs = dict(batch_size=batch_size, num_workers=0, pin_memory=True)
     return DataLoader(train_ds, shuffle=True, **kwargs), DataLoader(val_ds, shuffle=False, **kwargs), DataLoader(test_ds, shuffle=False, **kwargs), len(SELECTED_MODS)
+class RadioMLDataset_LowSNR(Dataset):
+    def __init__(self, file_path, selected_mods=None, snr_min=-20, snr_max=-4, augment=False):
+        if selected_mods is None:
+            selected_mods = SELECTED_MODS
+        with open(file_path, 'rb') as f:
+            raw = pickle.load(f, encoding='latin1')
+        self.augment = augment
+        self.samples = []
+        for (mod, snr), data in raw.items():
+            if mod not in selected_mods:
+                continue
+            if snr < snr_min or snr > snr_max:
+                continue
+            label = MOD_TO_IDX[mod]
+            for i in range(data.shape[0]):
+                self.samples.append((data[i], label, snr))
+        print(f'[LowSNR Dataset] Loaded {len(self.samples)} samples | SNR: {snr_min} to {snr_max} dB | Augment: {augment}')
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        iq, label, snr = self.samples[idx]
+        iq_used = augment_iq(iq) if self.augment else iq.copy()
+        inst_freq = compute_instantaneous_frequency(iq_used)
+        amplitude = compute_amplitude_envelope(iq_used)
+        fft_mag = compute_fft_magnitude(iq_used)
+        iq_5ch = np.vstack([iq_used, inst_freq[np.newaxis, :], amplitude[np.newaxis, :], fft_mag[np.newaxis, :]])
+        return torch.tensor(iq_5ch, dtype=torch.float32), torch.tensor(label, dtype=torch.long), torch.tensor(snr, dtype=torch.float32)
+
+
+def get_loaders_low_snr(file_path, batch_size=256, seed=42, snr_min=-20, snr_max=-4):
+    base = RadioMLDataset_LowSNR(file_path, snr_min=snr_min, snr_max=snr_max, augment=False)
+    total = len(base)
+    train_size = int(0.70 * total)
+    val_size   = int(0.15 * total)
+    test_size  = total - train_size - val_size
+    generator  = torch.Generator().manual_seed(seed)
+    splits     = random_split(range(total), [train_size, val_size, test_size], generator=generator)
+    train_idx, val_idx, test_idx = list(splits[0]), list(splits[1]), list(splits[2])
+    train_ds = Subset(RadioMLDataset_LowSNR(file_path, snr_min=snr_min, snr_max=snr_max, augment=True),  train_idx)
+    val_ds   = Subset(RadioMLDataset_LowSNR(file_path, snr_min=snr_min, snr_max=snr_max, augment=False), val_idx)
+    test_ds  = Subset(RadioMLDataset_LowSNR(file_path, snr_min=snr_min, snr_max=snr_max, augment=False), test_idx)
+    print(f'[Split] Train: {train_size} | Val: {val_size} | Test: {test_size}')
+    kwargs = dict(batch_size=batch_size, num_workers=0, pin_memory=True)
+    return (
+        DataLoader(train_ds, shuffle=True,  **kwargs),
+        DataLoader(val_ds,   shuffle=False, **kwargs),
+        DataLoader(test_ds,  shuffle=False, **kwargs),
+        len(SELECTED_MODS)
+    )
