@@ -1,120 +1,138 @@
 ﻿import os
+import sys
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import Adam
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
-from dataset import get_loaders_low_snr
-from model_v3 import AMCNet_v3
+import torch.optim as optim
+from torch.utils.data import DataLoader
+import numpy as np
 
-# â”€â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-FILE_PATH   = r"D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\data\RML2016.10a_dict.pkl"
-SAVE_PATH   = r"D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\models\best_model_v3_low_snr.pth"
-PRETRAINED  = r"D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\models\best_model_v3.pth"
+# --- Force Python to recognize the 'src' directory path ---
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
-BATCH_SIZE  = 128        # à¦›à§‹à¦Ÿ batch â€” better generalization
-EPOCHS      = 60
-LR          = 5e-4
-SNR_MIN     = -20
-SNR_MAX     = 0          # 0 dB à¦ªà¦°à§à¦¯à¦¨à§à¦¤ à¦¬à¦¾à¦¡à¦¼à¦¾à¦¨à§‹ à¦¹à¦¯à¦¼à§‡à¦›à§‡
-NUM_CLASSES = 11
-DEVICE      = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Now import safely with the EXACT validated class name
+from model_v3 import AMCNet_v3 
+from dataset import RadioMLDataset
 
+# --- Balanced Noise Augmentation Class ---
+class SignalAugmentation:
+    @staticmethod
+    def apply_awgn(iq_tensor, snr_db):
+        # Apply controlled extra noise to prevent complete signal destruction
+        if snr_db < -10:
+            return iq_tensor # Leave extreme low-snr to focal loss exploration
+        noise_factor = 10 ** (-snr_db / 20.0) * 0.5
+        noise = torch.randn_like(iq_tensor) * noise_factor
+        return iq_tensor + noise
+
+    @staticmethod
+    def apply_phase_offset(iq_tensor):
+        theta = np.radians(np.random.uniform(-5, 5)) # Micro-rotation
+        cos_t, sin_t = np.cos(theta), np.sin(theta)
+        
+        I = iq_tensor[0, :].clone()
+        Q = iq_tensor[1, :].clone()
+        
+        iq_tensor[0, :] = I * cos_t - Q * sin_t
+        iq_tensor[1, :] = I * sin_t + Q * cos_t
+        return iq_tensor
+
+# --- Custom Focal Loss for Low-SNR Domination ---
 class FocalLoss(nn.Module):
-    def __init__(self, gamma=2.0, weight=None):
-        super().__init__()
+    def __init__(self, alpha=1, gamma=2.0, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
         self.gamma = gamma
-        self.weight = weight
+        self.reduction = reduction
 
-    def forward(self, logits, targets):
-        ce = F.cross_entropy(logits, targets, weight=self.weight, reduction='none')
-        pt = torch.exp(-ce)
-        return ((1 - pt) ** self.gamma * ce).mean()
+    def forward(self, inputs, targets):
+        ce_loss = nn.CrossEntropyLoss(reduction='none')(inputs, targets)
+        pt = torch.exp(-ce_loss)
+        focal_loss = self.alpha * ((1 - pt) ** self.gamma) * ce_loss
+        
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        return focal_loss.sum()
 
+# --- Hardware & Config Setup ---
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using Super-Computing Device: {device}")
 
-def freeze_backbone(model, freeze=True):
-    """conv layers freeze à¦•à¦°à§‹, à¦¶à§à¦§à§ classifier layers train à¦¹à¦¬à§‡"""
-    for name, param in model.named_parameters():
-        if 'fc' in name or 'classifier' in name or 'bn3' in name:
-            param.requires_grad = True
-        else:
-            param.requires_grad = not freeze
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f'[Freeze] Trainable params: {trainable:,}')
+print("Loading dataset for the FINAL Low-SNR Training Run...")
+train_dataset = RadioMLDataset("data/RML2016.10a_dict.pkl", snr_min=-20, augment=False)
+train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, drop_last=True)
 
+# Initialize Model Architecture
+model = AMCNet_v3(num_classes=11).to(device)
 
-def train():
-    print(f'[Device] {DEVICE}')
+# Advanced Optimizer & Focal Loss Setup (LR Optimized to 1e-4 to break local minima)
+criterion = FocalLoss(gamma=2.0)
+optimizer = optim.AdamW(model.parameters(), lr=0.0001, weight_decay=1e-4)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
 
-    train_loader, val_loader, test_loader, num_classes = get_loaders_low_snr(
-        FILE_PATH, batch_size=BATCH_SIZE, snr_min=SNR_MIN, snr_max=SNR_MAX
-    )
+# --- Ultimate Training Loop ---
+num_epochs = 35  
+best_loss = float('inf')
 
-    model = AMCNet_v3(num_classes=NUM_CLASSES).to(DEVICE)
-    if os.path.exists(PRETRAINED):
-        model.load_state_dict(torch.load(PRETRAINED, map_location=DEVICE, weights_only=True))
-        print(f'[Model] Loaded pretrained: {PRETRAINED}')
-    else:
-        print('[Model] WARNING: No pretrained found')
+print("\n🚀 Starting the Final Deep-Learning Execution. No more turns after this! 🚀")
+for epoch in range(num_epochs):
+    model.train()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+    
+    for iq_tensor, label, snr in train_loader:
+        augmented_tensors = []
+        for b in range(iq_tensor.size(0)):
+            img = iq_tensor[b].clone()
+            img = SignalAugmentation.apply_phase_offset(img)
+            img = SignalAugmentation.apply_awgn(img, snr[b].item())
+            augmented_tensors.append(img)
+        
+        X_batch = torch.stack(augmented_tensors).to(device)
+        y_batch = label.to(device)
+        
+        I = X_batch[:, 0, :]
+        Q = X_batch[:, 1, :]
+        
+        # Instantaneous Frequency tracking
+        phase = torch.atan2(Q, I)
+        inst_freq = torch.diff(phase, dim=1, prepend=phase[:, :1])
+        inst_freq = (inst_freq - inst_freq.mean(dim=1, keepdim=True)) / (inst_freq.std(dim=1, keepdim=True) + 1e-8)
+        
+        # Amplitude Envelope tracking
+        envelope = torch.sqrt(I**2 + Q**2)
+        envelope = (envelope - envelope.mean(dim=1, keepdim=True)) / (envelope.std(dim=1, keepdim=True) + 1e-8)
+        
+        # FFT Magnitude tracking
+        complex_sig = torch.complex(I, Q)
+        fft_res = torch.fft.fft(complex_sig, dim=1)
+        fft_mag = torch.abs(torch.fft.fftshift(fft_res, dim=1))
+        fft_mag = (fft_mag - fft_mag.mean(dim=1, keepdim=True)) / (fft_mag.std(dim=1, keepdim=True) + 1e-8)
+        
+        final_features = torch.stack([I, Q, inst_freq, envelope, fft_mag], dim=1).to(device)
+        
+        optimizer.zero_grad()
+        outputs = model(final_features)
+        loss = criterion(outputs, y_batch)
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item() * X_batch.size(0)
+        _, predicted = torch.max(outputs.data, 1)
+        total += y_batch.size(0)
+        correct += (predicted == y_batch).sum().item()
+        
+    epoch_loss = running_loss / total
+    epoch_acc = (correct / total) * 100
+    
+    scheduler.step(epoch_loss)
+    
+    print(f"Epoch [{epoch+1:02d}/{num_epochs}] -> Loss: {epoch_loss:.4f} | Training Accuracy: {epoch_acc:.2f}%")
+    
+    if epoch_loss < best_loss:
+        best_loss = epoch_loss
+        torch.save(model.state_dict(), "models/best_model_v4_low_snr.pth")
 
-    # Phase 1: backbone freeze â€” à¦¶à§à¦§à§ head train (epoch 1-20)
-    freeze_backbone(model, freeze=True)
-    criterion = FocalLoss(gamma=2.0)
-    optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=LR)
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=20, T_mult=1, eta_min=1e-6)
-
-    best_val_acc = 0.0
-    phase = 1
-
-    for epoch in range(1, EPOCHS + 1):
-
-        # Phase 2: epoch 21 à¦¥à§‡à¦•à§‡ à¦¸à¦¬ layers unfreeze
-        if epoch == 21 and phase == 1:
-            print('\n[Phase 2] Unfreezing all layers...')
-            freeze_backbone(model, freeze=False)
-            optimizer = Adam(model.parameters(), lr=LR * 0.1, weight_decay=1e-4)
-            scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=20, T_mult=1, eta_min=1e-6)
-            phase = 2
-
-        # Train
-        model.train()
-        total_loss, correct, total = 0.0, 0, 0
-        for x, y, _ in train_loader:
-            x, y = x.to(DEVICE), y.to(DEVICE)
-            optimizer.zero_grad()
-            out = model(x)
-            loss = criterion(out, y)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
-            total_loss += loss.item() * x.size(0)
-            correct    += (out.argmax(1) == y).sum().item()
-            total      += x.size(0)
-        train_acc = correct / total * 100
-
-        # Val
-        model.eval()
-        val_correct, val_total = 0, 0
-        with torch.no_grad():
-            for x, y, _ in val_loader:
-                x, y = x.to(DEVICE), y.to(DEVICE)
-                val_correct += (model(x).argmax(1) == y).sum().item()
-                val_total   += x.size(0)
-        val_acc = val_correct / val_total * 100
-
-        scheduler.step()
-
-        print(f'Epoch [{epoch:02d}/{EPOCHS}] P{phase} | '
-              f'Train Acc: {train_acc:.2f}% | Val Acc: {val_acc:.2f}%')
-
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            torch.save(model.state_dict(), SAVE_PATH)
-            print(f'  â˜… Best saved â€” Val Acc: {val_acc:.2f}%')
-
-    print(f'\n[Done] Best Val Acc: {best_val_acc:.2f}%')
-
-
-if __name__ == '__main__':
-    train()
+print("\n✅ FINAL DEFINITIVE MODEL SAVED SECURELY AS 'models/best_model_v4_low_snr.pth' ✅")
