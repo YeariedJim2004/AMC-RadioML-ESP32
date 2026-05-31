@@ -1,0 +1,49 @@
+﻿PS D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32> python src/train_mid_snr.py
+Using Device for Mid-SNR Training: cuda
+Loading dataset and strictly locking Mid-SNR Range (-2dB to +8dB)...
+[Dataset] Loaded 121000 samples | Mods: 11 | SNR >= -2 dB | Augment: False
+✅ Mid-SNR Dataset Locked. Total Samples: 66000
+
+🔥 COMMENCING MID-SNR TARGETED RUN FOR 90-95% ACCURACY 🔥
+Epoch [01/40] -> Loss: 0.8976 | Training Accuracy: 68.58%
+Epoch [02/40] -> Loss: 0.7106 | Training Accuracy: 77.18%
+Epoch [03/40] -> Loss: 0.6545 | Training Accuracy: 80.60%
+Epoch [04/40] -> Loss: 0.6179 | Training Accuracy: 82.41%
+Epoch [05/40] -> Loss: 0.5953 | Training Accuracy: 83.36%
+Epoch [06/40] -> Loss: 0.5744 | Training Accuracy: 84.56%
+Epoch [07/40] -> Loss: 0.5564 | Training Accuracy: 85.60%
+Epoch [08/40] -> Loss: 0.5436 | Training Accuracy: 86.22%
+Epoch [09/40] -> Loss: 0.5265 | Training Accuracy: 87.00%
+Epoch [10/40] -> Loss: 0.5135 | Training Accuracy: 87.71%
+Epoch [11/40] -> Loss: 0.5029 | Training Accuracy: 88.28%
+Epoch [12/40] -> Loss: 0.4908 | Training Accuracy: 88.90%
+Epoch [13/40] -> Loss: 0.4797 | Training Accuracy: 89.50%
+Epoch [14/40] -> Loss: 0.4673 | Training Accuracy: 90.16%
+Epoch [15/40] -> Loss: 0.4589 | Training Accuracy: 90.58%
+Epoch [16/40] -> Loss: 0.4465 | Training Accuracy: 91.34%
+Epoch [17/40] -> Loss: 0.4372 | Training Accuracy: 91.86%
+Epoch [18/40] -> Loss: 0.4268 | Training Accuracy: 92.53%
+Epoch [19/40] -> Loss: 0.4134 | Training Accuracy: 93.27%
+Epoch [20/40] -> Loss: 0.4031 | Training Accuracy: 93.90%
+Epoch [21/40] -> Loss: 0.3903 | Training Accuracy: 94.68%
+Epoch [22/40] -> Loss: 0.3768 | Training Accuracy: 95.42%
+Epoch [23/40] -> Loss: 0.3647 | Training Accuracy: 96.06%
+Epoch [24/40] -> Loss: 0.3546 | Training Accuracy: 96.64%
+Epoch [25/40] -> Loss: 0.3409 | Training Accuracy: 97.20%
+Epoch [26/40] -> Loss: 0.3291 | Training Accuracy: 97.81%
+Epoch [27/40] -> Loss: 0.3213 | Training Accuracy: 98.09%
+Epoch [28/40] -> Loss: 0.3136 | Training Accuracy: 98.36%
+Epoch [29/40] -> Loss: 0.3073 | Training Accuracy: 98.64%
+Epoch [30/40] -> Loss: 0.3013 | Training Accuracy: 98.88%
+Epoch [31/40] -> Loss: 0.2967 | Training Accuracy: 99.06%
+Epoch [32/40] -> Loss: 0.2929 | Training Accuracy: 99.16%
+Epoch [33/40] -> Loss: 0.2893 | Training Accuracy: 99.30%
+Epoch [34/40] -> Loss: 0.2860 | Training Accuracy: 99.43%
+Epoch [35/40] -> Loss: 0.2846 | Training Accuracy: 99.45%
+Epoch [36/40] -> Loss: 0.2829 | Training Accuracy: 99.52%
+Epoch [37/40] -> Loss: 0.2813 | Training Accuracy: 99.56%
+Epoch [38/40] -> Loss: 0.2804 | Training Accuracy: 99.58%
+Epoch [39/40] -> Loss: 0.2798 | Training Accuracy: 99.61%
+Epoch [40/40] -> Loss: 0.2796 | Training Accuracy: 99.59%
+
+🏆 MISSION ACCOMPLISHED. HIGHEST MID-SNR ACCURACY SECURED: 99.61% 🏆
