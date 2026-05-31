@@ -1,0 +1,59 @@
+﻿PS D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32> python src/train_ultra_low_snr.py
+Using Device for Ultra Low-SNR Mission: cuda
+Loading dataset and strictly filtering Ultra Low-SNR Zone (-15dB to -10dB)...
+[Dataset] Loaded 187000 samples | Mods: 11 | SNR >= -15 dB | Augment: False
+✅ Ultra Low-SNR Target Locked. Total Samples: 33000
+
+🚀 COMMENCING MISSION ULTRA LOW-SNR: TARGETING 70-80% ACCURACY 🚀
+Epoch [01/50] -> Loss: 2.2580 | Training Accuracy: 17.08%
+Epoch [02/50] -> Loss: 2.1665 | Training Accuracy: 19.80%
+Epoch [03/50] -> Loss: 2.1224 | Training Accuracy: 21.72%
+Epoch [04/50] -> Loss: 2.0786 | Training Accuracy: 22.86%
+Epoch [05/50] -> Loss: 2.0254 | Training Accuracy: 25.22%
+Epoch [06/50] -> Loss: 1.9694 | Training Accuracy: 26.94%
+Epoch [07/50] -> Loss: 1.9049 | Training Accuracy: 29.15%
+Epoch [08/50] -> Loss: 1.8419 | Training Accuracy: 31.59%
+Epoch [09/50] -> Loss: 1.7862 | Training Accuracy: 33.21%
+Epoch [10/50] -> Loss: 1.7361 | Training Accuracy: 35.00%
+Epoch [11/50] -> Loss: 1.6877 | Training Accuracy: 37.37%
+Epoch [12/50] -> Loss: 1.6446 | Training Accuracy: 39.10%
+Epoch [13/50] -> Loss: 1.5969 | Training Accuracy: 41.50%
+Epoch [14/50] -> Loss: 1.5564 | Training Accuracy: 43.83%
+Epoch [15/50] -> Loss: 1.5155 | Training Accuracy: 46.06%
+Epoch [16/50] -> Loss: 1.4646 | Training Accuracy: 48.74%
+Epoch [17/50] -> Loss: 1.4175 | Training Accuracy: 51.60%
+Epoch [18/50] -> Loss: 1.3703 | Training Accuracy: 54.31%
+Epoch [19/50] -> Loss: 1.3095 | Training Accuracy: 57.05%
+Epoch [20/50] -> Loss: 1.2548 | Training Accuracy: 60.10%
+Epoch [21/50] -> Loss: 1.2010 | Training Accuracy: 63.15%
+Epoch [22/50] -> Loss: 1.1545 | Training Accuracy: 65.48%
+Epoch [23/50] -> Loss: 1.0975 | Training Accuracy: 68.21%
+Epoch [24/50] -> Loss: 1.0512 | Training Accuracy: 70.73%
+Epoch [25/50] -> Loss: 0.9986 | Training Accuracy: 73.48%
+Epoch [26/50] -> Loss: 0.9555 | Training Accuracy: 75.93%
+Epoch [27/50] -> Loss: 0.9061 | Training Accuracy: 78.42%
+Epoch [28/50] -> Loss: 0.8659 | Training Accuracy: 80.14%
+Epoch [29/50] -> Loss: 0.8302 | Training Accuracy: 82.15%
+Epoch [30/50] -> Loss: 0.7974 | Training Accuracy: 83.79%
+Epoch [31/50] -> Loss: 0.7655 | Training Accuracy: 85.23%
+Epoch [32/50] -> Loss: 0.7268 | Training Accuracy: 87.21%
+Epoch [33/50] -> Loss: 0.7062 | Training Accuracy: 88.19%
+Epoch [34/50] -> Loss: 0.6800 | Training Accuracy: 89.59%
+using Epoch [35/50] -> Loss: 0.6581 | Training Accuracy: 90.49%
+Epoch [36/50] -> Loss: 0.6377 | Training Accuracy: 91.44%
+Epoch [37/50] -> Loss: 0.6227 | Training Accuracy: 92.31%
+Epoch [38/50] -> Loss: 0.6117 | Training Accuracy: 92.65%
+Epoch [39/50] -> Loss: 0.5914 | Training Accuracy: 93.76%
+Epoch [40/50] -> Loss: 0.5792 | Training Accuracy: 94.31%
+Epoch [41/50] -> Loss: 0.5722 | Training Accuracy: 94.55%
+Epoch [42/50] -> Loss: 0.5592 | Training Accuracy: 95.35%
+Epoch [43/50] -> Loss: 0.5517 | Training Accuracy: 95.55%
+Epoch [44/50] -> Loss: 0.5441 | Training Accuracy: 95.95%
+Epoch [45/50] -> Loss: 0.5387 | Training Accuracy: 96.20%
+Epoch [46/50] -> Loss: 0.5356 | Training Accuracy: 96.22%
+Epoch [47/50] -> Loss: 0.5360 | Training Accuracy: 96.36%
+Epoch [48/50] -> Loss: 0.5275 | Training Accuracy: 96.61%
+Epoch [49/50] -> Loss: 0.5316 | Training Accuracy: 96.48%
+Epoch [50/50] -> Loss: 0.5321 | Training Accuracy: 96.33%
+
+🏆 MISSION COMPLETE. HIGHEST ULTRA LOW-SNR ACCURACY SECURED: 96.61% 🏆
