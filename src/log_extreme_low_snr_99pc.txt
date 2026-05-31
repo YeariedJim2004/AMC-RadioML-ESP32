@@ -1,0 +1,69 @@
+﻿PS D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32> python src/train_extreme_low_snr.py
+Using Device for Extreme Low-SNR Mission: cuda
+Loading dataset and strictly filtering Extreme Low-SNR Zone (-20dB to -15dB)...
+[Dataset] Loaded 220000 samples | Mods: 11 | SNR >= -20 dB | Augment: False
+✅ Extreme Low-SNR Target Locked. Total Samples: 33000
+
+🚨 COMMENCING ULTIMATE MISSION: DESTINATION EXTREME LOW-SNR (80-90% TARGET) 🚨
+Epoch [01/60] -> Loss: 2.4459 | Training Accuracy: 10.30%
+Epoch [02/60] -> Loss: 2.3961 | Training Accuracy: 11.44%
+Epoch [03/60] -> Loss: 2.3818 | Training Accuracy: 12.16%
+Epoch [04/60] -> Loss: 2.3681 | Training Accuracy: 13.06%
+Epoch [05/60] -> Loss: 2.3467 | Training Accuracy: 14.71%
+Epoch [06/60] -> Loss: 2.3165 | Training Accuracy: 16.69%
+Epoch [07/60] -> Loss: 2.2796 | Training Accuracy: 19.21%
+Epoch [08/60] -> Loss: 2.2373 | Training Accuracy: 21.43%
+Epoch [09/60] -> Loss: 2.1901 | Training Accuracy: 23.88%
+Epoch [10/60] -> Loss: 2.1380 | Training Accuracy: 26.54%
+Epoch [11/60] -> Loss: 2.0837 | Training Accuracy: 29.13%
+Epoch [12/60] -> Loss: 2.0218 | Training Accuracy: 32.15%
+Epoch [13/60] -> Loss: 1.9598 | Training Accuracy: 35.10%
+Epoch [14/60] -> Loss: 1.8940 | Training Accuracy: 38.12%
+Epoch [15/60] -> Loss: 1.8232 | Training Accuracy: 41.32%
+Epoch [16/60] -> Loss: 1.7549 | Training Accuracy: 44.28%
+Epoch [17/60] -> Loss: 1.6832 | Training Accuracy: 47.74%
+Epoch [18/60] -> Loss: 1.6083 | Training Accuracy: 50.89%
+Epoch [19/60] -> Loss: 1.5339 | Training Accuracy: 54.31%
+Epoch [20/60] -> Loss: 1.4712 | Training Accuracy: 57.15%
+Epoch [21/60] -> Loss: 1.4046 | Training Accuracy: 60.07%
+Epoch [22/60] -> Loss: 1.3359 | Training Accuracy: 63.64%
+Epoch [23/60] -> Loss: 1.2756 | Training Accuracy: 66.15%
+Epoch [24/60] -> Loss: 1.2188 | Training Accuracy: 68.69%
+Epoch [25/60] -> Loss: 1.1658 | Training Accuracy: 71.07%
+Epoch [26/60] -> Loss: 1.1098 | Training Accuracy: 73.77%
+Epoch [27/60] -> Loss: 1.0620 | Training Accuracy: 76.32%
+Epoch [28/60] -> Loss: 1.0136 | Training Accuracy: 78.77%
+Epoch [29/60] -> Loss: 0.9683 | Training Accuracy: 80.66%
+Epoch [30/60] -> Loss: 0.9358 | Training Accuracy: 82.16%
+Epoch [31/60] -> Loss: 0.8990 | Training Accuracy: 84.25%
+Epoch [32/60] -> Loss: 0.8665 | Training Accuracy: 85.68%
+Epoch [33/60] -> Loss: 0.8323 | Training Accuracy: 87.35%
+Epoch [34/60] -> Loss: 0.8028 | Training Accuracy: 88.85%
+Epoch [35/60] -> Loss: 0.7764 | Training Accuracy: 90.20%
+Epoch [36/60] -> Loss: 0.7514 | Training Accuracy: 91.42%
+Epoch [37/60] -> Loss: 0.7274 | Training Accuracy: 92.50%
+Epoch [38/60] -> Loss: 0.7078 | Training Accuracy: 93.27%
+Epoch [39/60] -> Loss: 0.6893 | Training Accuracy: 94.20%
+Epoch [40/60] -> Loss: 0.6718 | Training Accuracy: 94.91%
+Epoch [41/60] -> Loss: 0.6575 | Training Accuracy: 95.61%
+Epoch [42/60] -> Loss: 0.6447 | Training Accuracy: 96.15%
+Epoch [43/60] -> Loss: 0.6336 | Training Accuracy: 96.66%
+Epoch [44/60] -> Loss: 0.6213 | Training Accuracy: 97.07%
+Epoch [45/60] -> Loss: 0.6124 | Training Accuracy: 97.42%
+Epoch [46/60] -> Loss: 0.6019 | Training Accuracy: 97.86%
+Epoch [47/60] -> Loss: 0.5963 | Training Accuracy: 98.06%
+Epoch [48/60] -> Loss: 0.5907 | Training Accuracy: 98.34%
+Epoch [49/60] -> Loss: 0.5831 | Training Accuracy: 98.47%
+Epoch [50/60] -> Loss: 0.5802 | Training Accuracy: 98.55%
+Epoch [51/60] -> Loss: 0.5734 | Training Accuracy: 98.77%
+Epoch [52/60] -> Loss: 0.5724 | Training Accuracy: 98.84%
+Epoch [53/60] -> Loss: 0.5665 | Training Accuracy: 99.08%
+Epoch [54/60] -> Loss: 0.5646 | Training Accuracy: 99.06%
+Epoch [55/60] -> Loss: 0.5634 | Training Accuracy: 99.12%
+Epoch [56/60] -> Loss: 0.5613 | Training Accuracy: 99.15%
+Epoch [57/60] -> Loss: 0.5615 | Training Accuracy: 99.14%
+Epoch [58/60] -> Loss: 0.5592 | Training Accuracy: 99.23%
+Epoch [59/60] -> Loss: 0.5594 | Training Accuracy: 99.19%
+Epoch [60/60] -> Loss: 0.5588 | Training Accuracy: 99.22%
+
+ MISSION COMPLETE. HIGHEST EXTREME LOW-SNR ACCURACY SECURED: 99.23% 
