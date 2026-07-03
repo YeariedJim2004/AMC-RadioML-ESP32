@@ -11,7 +11,7 @@ This project implements an **Automatic Modulation Classification (AMC)** system 
 
 ---
 
-## Target Modulations (8 types)
+## Target Modulations (11 types)
 
 | Type | Category |
 |------|----------|
@@ -23,6 +23,10 @@ This project implements an **Automatic Modulation Classification (AMC)** system 
 | PAM4 | Linear Digital |
 | WBFM | Analog |
 | AM-DSB | Analog |
+| AM-SSB|
+|CPFSK|
+|GFSK|
+
 
 ---
 
