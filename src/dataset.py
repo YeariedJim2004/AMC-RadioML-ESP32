@@ -9,6 +9,13 @@ SELECTED_MODS = [
 ]
 MOD_TO_IDX = {mod: idx for idx, mod in enumerate(SELECTED_MODS)}
 
+# ── helper function for uniform z-score ──────────────────
+def z_score_normalize(arr):
+    std = arr.std()
+    if std > 1e-8:
+        return (arr - arr.mean()) / std
+    return arr - arr.mean()
+
 def compute_instantaneous_frequency(iq):
     I = iq[0]
     Q = iq[1]
@@ -17,20 +24,13 @@ def compute_instantaneous_frequency(iq):
     inst_freq = np.diff(phase_unwrapped, prepend=phase_unwrapped[0])
     kernel = np.ones(5) / 5
     inst_freq = np.convolve(inst_freq, kernel, mode='same')
-    std = inst_freq.std()
-    if std > 1e-8:
-        inst_freq = (inst_freq - inst_freq.mean()) / std
-    return inst_freq.astype(np.float32)
+    return z_score_normalize(inst_freq).astype(np.float32)
 
 def compute_amplitude_envelope(iq):
     I = iq[0]
     Q = iq[1]
     envelope = np.sqrt(I**2 + Q**2)
-    std = envelope.std()
-    if std > 1e-8:
-        envelope = (envelope - envelope.mean()) / std
-    return envelope.astype(np.float32)
-
+    return z_score_normalize(envelope).astype(np.float32)
 
 def compute_fft_magnitude(iq):
     I = iq[0]
@@ -38,10 +38,7 @@ def compute_fft_magnitude(iq):
     complex_sig = I + 1j * Q
     fft_mag = np.abs(np.fft.fft(complex_sig))
     fft_mag = np.fft.fftshift(fft_mag)
-    std = fft_mag.std()
-    if std > 1e-8:
-        fft_mag = (fft_mag - fft_mag.mean()) / std
-    return fft_mag.astype(np.float32)
+    return z_score_normalize(fft_mag).astype(np.float32)
 
 def augment_iq(iq):
     I = iq[0].copy()
@@ -77,6 +74,7 @@ class RadioMLDataset(Dataset):
         if selected_mods is None:
             selected_mods = SELECTED_MODS
         with open(file_path, 'rb') as f:
+            # NumPy 2.x Deprecation এবং encoding হ্যান্ডেল করার স্ট্যান্ডার্ড উপায়
             raw = pickle.load(f, encoding='latin1')
         self.augment = augment
         self.samples = []
@@ -96,27 +94,24 @@ class RadioMLDataset(Dataset):
     def __getitem__(self, idx):
         iq, label, snr = self.samples[idx]
         iq_used = augment_iq(iq) if self.augment else iq.copy()
+        
+        # মূল I এবং Q-কেও Z-Score নরমালইজ করা হলো হার্ডওয়্যার ইমিউনিটির জন্য
+        I_norm = z_score_normalize(iq_used[0])
+        Q_norm = z_score_normalize(iq_used[1])
+        
         inst_freq = compute_instantaneous_frequency(iq_used)
         amplitude = compute_amplitude_envelope(iq_used)
         fft_mag = compute_fft_magnitude(iq_used)
-        iq_5ch = np.vstack([iq_used, inst_freq[np.newaxis, :], amplitude[np.newaxis, :], fft_mag[np.newaxis, :]])
+        
+        iq_5ch = np.vstack([
+            I_norm[np.newaxis, :], 
+            Q_norm[np.newaxis, :], 
+            inst_freq[np.newaxis, :], 
+            amplitude[np.newaxis, :], 
+            fft_mag[np.newaxis, :]
+        ])
         return torch.tensor(iq_5ch, dtype=torch.float32), torch.tensor(label, dtype=torch.long), torch.tensor(snr, dtype=torch.float32)
 
-def get_loaders(file_path, batch_size=256, seed=42, snr_min=-4):
-    base = RadioMLDataset(file_path, snr_min=snr_min, augment=False)
-    total = len(base)
-    train_size = int(0.70 * total)
-    val_size = int(0.15 * total)
-    test_size = total - train_size - val_size
-    generator = torch.Generator().manual_seed(seed)
-    splits = random_split(range(total), [train_size, val_size, test_size], generator=generator)
-    train_idx, val_idx, test_idx = list(splits[0]), list(splits[1]), list(splits[2])
-    train_ds = Subset(RadioMLDataset(file_path, snr_min=snr_min, augment=True),  train_idx)
-    val_ds   = Subset(RadioMLDataset(file_path, snr_min=snr_min, augment=False), val_idx)
-    test_ds  = Subset(RadioMLDataset(file_path, snr_min=snr_min, augment=False), test_idx)
-    print(f'[Split] Train: {train_size} | Val: {val_size} | Test: {test_size}')
-    kwargs = dict(batch_size=batch_size, num_workers=0, pin_memory=True)
-    return DataLoader(train_ds, shuffle=True, **kwargs), DataLoader(val_ds, shuffle=False, **kwargs), DataLoader(test_ds, shuffle=False, **kwargs), len(SELECTED_MODS)
 class RadioMLDataset_LowSNR(Dataset):
     def __init__(self, file_path, selected_mods=None, snr_min=-20, snr_max=-4, augment=False):
         if selected_mods is None:
@@ -141,10 +136,21 @@ class RadioMLDataset_LowSNR(Dataset):
     def __getitem__(self, idx):
         iq, label, snr = self.samples[idx]
         iq_used = augment_iq(iq) if self.augment else iq.copy()
+        
+        I_norm = z_score_normalize(iq_used[0])
+        Q_norm = z_score_normalize(iq_used[1])
+        
         inst_freq = compute_instantaneous_frequency(iq_used)
         amplitude = compute_amplitude_envelope(iq_used)
         fft_mag = compute_fft_magnitude(iq_used)
-        iq_5ch = np.vstack([iq_used, inst_freq[np.newaxis, :], amplitude[np.newaxis, :], fft_mag[np.newaxis, :]])
+        
+        iq_5ch = np.vstack([
+            I_norm[np.newaxis, :], 
+            Q_norm[np.newaxis, :], 
+            inst_freq[np.newaxis, :], 
+            amplitude[np.newaxis, :], 
+            fft_mag[np.newaxis, :]
+        ])
         return torch.tensor(iq_5ch, dtype=torch.float32), torch.tensor(label, dtype=torch.long), torch.tensor(snr, dtype=torch.float32)
 
 
@@ -157,9 +163,11 @@ def get_loaders_low_snr(file_path, batch_size=256, seed=42, snr_min=-20, snr_max
     generator  = torch.Generator().manual_seed(seed)
     splits     = random_split(range(total), [train_size, val_size, test_size], generator=generator)
     train_idx, val_idx, test_idx = list(splits[0]), list(splits[1]), list(splits[2])
+    
     train_ds = Subset(RadioMLDataset_LowSNR(file_path, snr_min=snr_min, snr_max=snr_max, augment=True),  train_idx)
     val_ds   = Subset(RadioMLDataset_LowSNR(file_path, snr_min=snr_min, snr_max=snr_max, augment=False), val_idx)
     test_ds  = Subset(RadioMLDataset_LowSNR(file_path, snr_min=snr_min, snr_max=snr_max, augment=False), test_idx)
+    
     print(f'[Split] Train: {train_size} | Val: {val_size} | Test: {test_size}')
     kwargs = dict(batch_size=batch_size, num_workers=0, pin_memory=True)
     return (

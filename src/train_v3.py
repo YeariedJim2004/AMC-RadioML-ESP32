@@ -1,147 +1,157 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
 import os
 import json
 import time
-import torch
-import torch.nn as nn
-from dataset import get_loaders
+# dataset.py থেকে আমাদের ফাইনাল লো-এসএনআর লোডার ইমপোর্ট করা হলো
+from dataset import get_loaders_low_snr
+# model_v3.py থেকে আপনার ফাইনাল AMCNet_v3 আর্কিটেকচার ইমপোর্ট করা হলো
 from model_v3 import AMCNet_v3
 
-# ── Config ────────────────────────────────────────────────────────────────────
-DATA_PATH  = r'D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\data\RML2016.10a_dict.pkl'
-MODEL_DIR  = r'D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\models'
-RESULT_DIR = r'D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\results'
+# ── Config ───────────────────────────────────────────────
+DATASET_PATH    = r'D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\data\RML2016.10a_dict.pkl'
+MODEL_SAVE_PATH = r'D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\models\best_model_v3.pth'
+LOG_SAVE_PATH   = r'D:\Signal Project\AMC-6G-Projects\AMC-RadioML-ESP32\results\train_log_v3.json'
 
-EPOCHS     = 100
-BATCH_SIZE = 256
-LR         = 0.0005
-PATIENCE   = 15
-SNR_MIN    = -4
+NUM_CLASSES  = 11      # ১১টি মডুলেশন ক্লাস পুরোপুরি লকড
+EPOCHS       = 100
+BATCH_SIZE   = 256
+LR           = 0.0005  # আপনার আগের লগের LR ধরে রাখা হলো
+PATIENCE     = 10
 
-os.makedirs(MODEL_DIR,  exist_ok=True)
-os.makedirs(RESULT_DIR, exist_ok=True)
+# আমাদের সুনির্দিষ্ট ফাইনাল নয়েজ জোন (Ultra, Extreme & Low SNR)
+SNR_MIN      = -20
+SNR_MAX      = -4
+# ─────────────────────────────────────────────────────────
 
-# ── Device ────────────────────────────────────────────────────────────────────
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Device: {device}")
 
-# ── Data ──────────────────────────────────────────────────────────────────────
-print("\nLoading dataset...")
-train_loader, val_loader, _, num_classes = get_loaders(
-    DATA_PATH, batch_size=BATCH_SIZE, snr_min=SNR_MIN
-)
-
-# ── Model ─────────────────────────────────────────────────────────────────────
-model = AMCNet_v3(num_classes=num_classes, dropout=0.5).to(device)
-total_params = sum(p.numel() for p in model.parameters())
-print(f"\nAMCNet_v3 — Parameters: {total_params:,}")
-
-# ── Optimizer & Scheduler ─────────────────────────────────────────────────────
-optimizer = torch.optim.Adam(model.parameters(), lr=LR)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=8, verbose=True
-)
-# Class Weights
-class FocalLoss(nn.Module):
-    def __init__(self, gamma=2.0):
-        super().__init__()
-        self.gamma = gamma
-    def forward(self, logits, targets):
-        ce = nn.functional.cross_entropy(logits, targets, reduction='none')
-        pt = torch.exp(-ce)
-        return ((1 - pt) ** self.gamma * ce).mean()
-
-class_weights = torch.ones(11)
-class_weights[6] = 3.0   # WBFM
-class_weights[7] = 3.0   # AM-DSB
-class_weights = class_weights.to(device)
-criterion = FocalLoss(gamma=2.0)
-
-# ── Training Loop ─────────────────────────────────────────────────────────────
-best_val_loss = float('inf')
-patience_counter = 0
-train_log = []
-
-print(f"\nTraining start — Epochs: {EPOCHS} | Batch: {BATCH_SIZE} | LR: {LR}\n")
-
-for epoch in range(1, EPOCHS + 1):
-    t0 = time.time()
-
-    # Train
+def train_one_epoch(model, loader, criterion, optimizer, device):
     model.train()
-    train_loss = 0.0
-    train_correct = 0
-    train_total = 0
+    total_loss, correct, total = 0.0, 0, 0
 
-    for xb, yb, _ in train_loader:
+    for xb, yb, _ in loader:
         xb, yb = xb.to(device), yb.to(device)
+
         optimizer.zero_grad()
-        logits = model(xb)
-        loss = criterion(logits, yb)
+        out  = model(xb)
+        loss = criterion(out, yb)
         loss.backward()
         optimizer.step()
 
-        train_loss    += loss.item() * xb.size(0)
-        preds          = logits.argmax(dim=1)
-        train_correct += (preds == yb).sum().item()
-        train_total   += xb.size(0)
+        total_loss += loss.item() * xb.size(0)
+        correct    += (out.argmax(1) == yb).sum().item()
+        total      += xb.size(0)
 
-    train_loss /= train_total
-    train_acc   = train_correct / train_total
+    # জিপিইউ মেমরি ওভারফ্লো এবং ইলিগ্যাল অ্যাক্সেস ঠেকানোর জন্য ক্যাশ ক্লিয়ার
+    if device.type == 'cuda':
+        torch.cuda.empty_cache()
 
-    # Validate
+    return total_loss / total, correct / total
+
+
+@torch.no_grad()
+def evaluate(model, loader, criterion, device):
     model.eval()
-    val_loss = 0.0
-    val_correct = 0
-    val_total = 0
+    total_loss, correct, total = 0.0, 0, 0
 
-    with torch.no_grad():
-        for xb, yb, _ in val_loader:
-            xb, yb = xb.to(device), yb.to(device)
-            logits  = model(xb)
-            loss    = criterion(logits, yb)
-            val_loss    += loss.item() * xb.size(0)
-            preds        = logits.argmax(dim=1)
-            val_correct += (preds == yb).sum().item()
-            val_total   += xb.size(0)
+    for xb, yb, _ in loader:
+        xb, yb = xb.to(device), yb.to(device)
+        out  = model(xb)
+        loss = criterion(out, yb)
 
-    val_loss /= val_total
-    val_acc   = val_correct / val_total
+        total_loss += loss.item() * xb.size(0)
+        correct    += (out.argmax(1) == yb).sum().item()
+        total      += xb.size(0)
 
-    scheduler.step(val_loss)
-    elapsed = time.time() - t0
+    if device.type == 'cuda':
+        torch.cuda.empty_cache()
 
-    print(f"Epoch {epoch:3d}/{EPOCHS} | "
-          f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f} | "
-          f"Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f} | "
-          f"Time: {elapsed:.1f}s")
+    return total_loss / total, correct / total
 
-    train_log.append({
-        'epoch': epoch,
-        'train_loss': round(train_loss, 6),
-        'train_acc':  round(train_acc,  6),
-        'val_loss':   round(val_loss,   6),
-        'val_acc':    round(val_acc,    6),
-    })
 
-    # Early Stopping
-    if val_loss < best_val_loss:
-        best_val_loss = val_loss
-        patience_counter = 0
-        save_path = os.path.join(MODEL_DIR, 'best_model_v3.pth')
-        torch.save(model.state_dict(), save_path)
-        print(f"  >>> Best model saved (val_loss={best_val_loss:.4f})")
-    else:
-        patience_counter += 1
-        if patience_counter >= PATIENCE:
-            print(f"\nEarly stopping at epoch {epoch}")
-            break
+def main():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("="*60)
+    print(f"🚀 FINAL AMC TRAINING ENGINE V3 | DEVICE: {device}")
+    print("="*60)
 
-# ── Save log ──────────────────────────────────────────────────────────────────
-log_path = os.path.join(RESULT_DIR, 'train_log_v3.json')
-with open(log_path, 'w') as f:
-    json.dump(train_log, f, indent=2)
+    print("Loading low SNR dataset...")
+    # আপনার ফাইনাল ৪টি জোন কাভার করার জন্য ফ্রেশ লো-এসএনআর লোডার
+    train_loader, val_loader, test_loader, num_classes = get_loaders_low_snr(
+        file_path = DATASET_PATH,
+        batch_size = BATCH_SIZE,
+        snr_min = SNR_MIN,
+        snr_max = SNR_MAX
+    )
 
-print(f"\nTraining complete.")
-print(f"Best val loss : {best_val_loss:.4f}")
-print(f"Model saved   : {os.path.join(MODEL_DIR, 'best_model_v3.pth')}")
-print(f"Log saved     : {log_path}")
+    print(f"\n✓ Verified Target Classes in Dataset: {num_classes}")
+    print(f"✓ Target SNR Training Range: {SNR_MIN} dB to {SNR_MAX} dB")
+
+    # আপনার শক্তিশালী ResNet-Attention (AMCNet_v3) মডেল ইনিশিয়েলাইজেশন
+    model = AMCNet_v3(num_classes=NUM_CLASSES, dropout=0.5).to(device)
+    
+    # টোটাল প্যারামিটার প্রিন্ট
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"✓ AMCNet_v3 — Total Trainable Parameters: {total_params:,}")
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=LR)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                    optimizer, mode='min', factor=0.5, patience=5)
+
+    best_val_loss = float('inf')
+    no_improve    = 0
+    log           = []
+
+    os.makedirs(os.path.dirname(MODEL_SAVE_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(LOG_SAVE_PATH),   exist_ok=True)
+
+    print(f"\nTraining start — Epochs: {EPOCHS} | Batch: {BATCH_SIZE} | LR: {LR}\n")
+    
+    for epoch in range(1, EPOCHS + 1):
+        start_time = time.time()
+        
+        tr_loss, tr_acc   = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+        scheduler.step(val_loss)
+        
+        epoch_time = time.time() - start_time
+
+        # রিসার্চ পেপারের জন্য লার্নিং কার্ভ ডেটা ট্র্যাক
+        log.append({
+            "epoch"   : epoch,
+            "tr_loss" : round(tr_loss,  4),
+            "tr_acc"  : round(tr_acc,   4),
+            "val_loss": round(val_loss, 4),
+            "val_acc" : round(val_acc,  4)
+        })
+
+        print(f"Epoch {epoch:03d}/{EPOCHS} | "
+              f"Train Loss: {tr_loss:.4f} | Train Acc: {tr_acc*100:.2f}% | "
+              f"Val Loss: {val_loss:.4f} | Val Acc: {val_acc*100:.2f}% | "
+              f"Time: {epoch_time:.1f}s")
+
+        # বেস্ট মডেল সেভ ও লক মেকানিজম
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            no_improve    = 0
+            torch.save(model.state_dict(), MODEL_SAVE_PATH)
+            print(f"  >>> Best V3 model saved (val_loss={val_loss:.4f})")
+        else:
+            no_improve += 1
+            if no_improve >= PATIENCE:
+                print(f"\nEarly stopping triggered at epoch {epoch}.")
+                break
+
+    with open(LOG_SAVE_PATH, 'w') as f:
+        json.dump(log, f, indent=2)
+        
+    print("\n" + "="*60)
+    print(f"✓ V3 Training complete. Log saved to -> {LOG_SAVE_PATH}")
+    print(f"✓ Best V3 weights locked at -> {MODEL_SAVE_PATH}")
+    print("="*60)
+
+
+if __name__ == "__main__":
+    main()
